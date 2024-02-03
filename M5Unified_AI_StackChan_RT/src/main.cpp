@@ -63,6 +63,68 @@ void servo(int id, int pos)
 
 #endif
 
+// NECO MIMI board
+#define NECOMIMI
+#ifdef NECOMIMI
+//#include <Adafruit_NeoPixel.h>
+#include <FastLED.h>
+// For NeoPixel
+#define NEO_PIN_DIN   19
+#define NEO_NUM_LEDS  14
+
+//Adafruit_NeoPixel neco_pixels(NEO_NUM_LEDS, NEO_PIN_DIN, NEO_GRB + NEO_KHZ800);
+CRGB neco_leds[NEO_NUM_LEDS];
+TaskHandle_t neo_thp[1]; // Task handler for NeoPixel thread
+
+/*
+// Color wheel
+uint32_t neo_wheel(byte WheelPos) {
+  WheelPos = 255 - WheelPos;
+  if(WheelPos < 85) {
+    return neco_pixels.Color(255 - WheelPos * 3, 0, WheelPos * 3);
+  }
+  if(WheelPos < 170) {
+    WheelPos -= 85;
+    return neco_pixels.Color(0, WheelPos * 3, 255 - WheelPos * 3);
+  }
+  WheelPos -= 170;
+  return neco_pixels.Color(WheelPos * 3, 255 - WheelPos * 3, 0);
+}
+
+// Color rainbow
+void neo_rainbow(uint8_t wait) {
+  uint16_t i, j;
+
+  for(j=0; j<256; j++) {
+    for(i=0; i<neco_pixels.numPixels(); i++) {
+      neco_pixels.setPixelColor(i, neo_wheel((i+j) & 255));
+    }
+    neco_pixels.show();
+    delay(wait);
+  }
+}
+*/
+
+// Process NeoPixels on NECO MIMI board.
+void neo_loop(void *args){
+  while(1){
+    // Put codes for NeoPixle
+    //neo_rainbow(10);
+    for(int i=0; i<NEO_NUM_LEDS; i++){
+      neco_leds[i] = CRGB::Green;
+    }
+    FastLED.show();
+    delay(500);
+    for(int i=0; i<NEO_NUM_LEDS; i++){
+      neco_leds[i] = CRGB::Black;
+    }
+    FastLED.show();
+    delay(500);
+  }
+}
+
+#endif
+
 /// set M5Speaker virtual channel (0-7)
 static constexpr uint8_t m5spk_virtual_channel = 0;
 
@@ -884,6 +946,16 @@ void setup()
     spk_cfg.task_pinned_core = APP_CPU_NUM;
     M5.Speaker.config(spk_cfg);
   }
+
+#ifdef NECOMIMI
+  //neco_pixels.begin();
+  //neco_pixels.setBrightness(60);
+  //neco_pixels.clear();
+  //neco_pixels.show();
+  FastLED.addLeds<NEOPIXEL, NEO_PIN_DIN>(neco_leds, NEO_NUM_LEDS);
+  FastLED.setBrightness(60);
+  xTaskCreatePinnedToCore(neo_loop, "neo_loop", 40000, NULL, 1, &neo_thp[1], 0);
+#endif
 
   Servo_setup();
   delay(1000);
