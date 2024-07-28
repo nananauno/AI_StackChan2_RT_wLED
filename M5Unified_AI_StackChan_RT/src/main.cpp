@@ -63,68 +63,6 @@ void servo(int id, int pos)
 
 #endif
 
-// NECO MIMI board
-#define NECOMIMI
-#ifdef NECOMIMI
-//#include <Adafruit_NeoPixel.h>
-#include <FastLED.h>
-// For NeoPixel
-#define NEO_PIN_DIN   19
-#define NEO_NUM_LEDS  14
-
-//Adafruit_NeoPixel neco_pixels(NEO_NUM_LEDS, NEO_PIN_DIN, NEO_GRB + NEO_KHZ800);
-CRGB neco_leds[NEO_NUM_LEDS];
-TaskHandle_t neo_thp[1]; // Task handler for NeoPixel thread
-
-/*
-// Color wheel
-uint32_t neo_wheel(byte WheelPos) {
-  WheelPos = 255 - WheelPos;
-  if(WheelPos < 85) {
-    return neco_pixels.Color(255 - WheelPos * 3, 0, WheelPos * 3);
-  }
-  if(WheelPos < 170) {
-    WheelPos -= 85;
-    return neco_pixels.Color(0, WheelPos * 3, 255 - WheelPos * 3);
-  }
-  WheelPos -= 170;
-  return neco_pixels.Color(WheelPos * 3, 255 - WheelPos * 3, 0);
-}
-
-// Color rainbow
-void neo_rainbow(uint8_t wait) {
-  uint16_t i, j;
-
-  for(j=0; j<256; j++) {
-    for(i=0; i<neco_pixels.numPixels(); i++) {
-      neco_pixels.setPixelColor(i, neo_wheel((i+j) & 255));
-    }
-    neco_pixels.show();
-    delay(wait);
-  }
-}
-*/
-
-// Process NeoPixels on NECO MIMI board.
-void neo_loop(void *args){
-  while(1){
-    // Put codes for NeoPixle
-    //neo_rainbow(10);
-    for(int i=0; i<NEO_NUM_LEDS; i++){
-      neco_leds[i] = CRGB::Green;
-    }
-    FastLED.show();
-    delay(500);
-    for(int i=0; i<NEO_NUM_LEDS; i++){
-      neco_leds[i] = CRGB::Black;
-    }
-    FastLED.show();
-    delay(500);
-  }
-}
-
-#endif
-
 /// set M5Speaker virtual channel (0-7)
 static constexpr uint8_t m5spk_virtual_channel = 0;
 
@@ -138,6 +76,192 @@ const Expression expressions_table[] = {
   Expression::Sad,
   Expression::Angry
 };
+
+// NECO MIMI board
+#define NECOMIMI
+#ifdef NECOMIMI
+//#include <Adafruit_NeoPixel.h>
+#include <FastLED.h>
+// For NeoPixel
+#define NEO_PIN_DIN   19
+#define NEO_NUM_LEDS  14
+
+//Adafruit_NeoPixel neco_pixels(NEO_NUM_LEDS, NEO_PIN_DIN, NEO_GRB + NEO_KHZ800);
+CRGB neco_leds[NEO_NUM_LEDS];
+TaskHandle_t neo_thp[1]; // Task handler for NeoPixel thread
+
+// Blink LEDs
+void neo_blink(uint32_t color){
+  fill_solid(neco_leds, NEO_NUM_LEDS, color);
+  FastLED.show();
+  delay(500);
+  fill_solid(neco_leds, NEO_NUM_LEDS, CRGB::Black);
+  FastLED.show();
+  delay(500);
+}
+
+// Move dot
+void neo_move(uint32_t color_base, uint32_t color_dot){
+  for(int i=0; i<NEO_NUM_LEDS; i++){
+    fill_solid(neco_leds, NEO_NUM_LEDS, color_base);
+    neco_leds[i] = color_dot;
+    FastLED.show();
+    delay(35);
+  }
+  fill_solid(neco_leds, NEO_NUM_LEDS, color_base);
+  FastLED.show();
+  delay(510);
+}
+
+// Move dot with fade
+void neo_move_fade(uint32_t color){
+  for(int i=0; i<NEO_NUM_LEDS; i++){
+    fadeToBlackBy(neco_leds, NEO_NUM_LEDS, 64);
+    neco_leds[i] = color;
+    FastLED.show();
+    delay(35);
+  }
+  for(int i=0; i<NEO_NUM_LEDS; i++){
+    fadeToBlackBy(neco_leds, NEO_NUM_LEDS, 64);
+    FastLED.show();
+    delay(35);
+  }
+}
+
+// Fade color
+void neo_fade(uint8_t hue){
+  // Set Black
+  fill_solid(neco_leds, NEO_NUM_LEDS, CRGB::Black);
+  FastLED.show();
+  // fade in
+  CRGB fade_color = CRGB::Black;
+  //long rate_red = target.red/255;
+  //long rate_green = target.green/255;
+  //long rate_blue = target.blue/255;
+  //Serial.printf("[NEO_FADE]rate: %.2f,%.2f,%.2f\n", rate_red, rate_green, rate_blue);
+  //Serial.printf("[NEO_FADE]target: %d,%d,%d\n", target.red, target.green, target.blue);
+
+  for(int i=0; i<255; i++){
+    fill_solid(neco_leds, NEO_NUM_LEDS, fade_color);
+    FastLED.show();
+    delay(2);
+    //fade_color.red = rate_red*(ulong)i;
+    //fade_color.green = rate_green*(ulong)i;
+    //fade_color.blue = rate_blue*(ulong)i;
+    //Serial.printf("[NECO_FADE]%d,%d,%d\n", fade_color.red, fade_color.green, fade_color.blue);
+    //fade_color.green++;
+    fade_color.setHSV(hue,255,i);
+  }
+  for(int i=255; i>=0; i--){
+    fill_solid(neco_leds, NEO_NUM_LEDS, fade_color);
+    FastLED.show();
+    delay(2);
+    //fade_color.red = rate_red*i;
+    //fade_color.green = rate_green*i;
+    //fade_color.blue = rate_blue*i;
+    //fade_color.green--;
+    fade_color.setHSV(hue,255,i);
+  }
+}
+
+// Solid color
+void neo_solid(uint32_t color){
+  fill_solid(neco_leds, NEO_NUM_LEDS, color);
+  FastLED.show();
+  delay(1000);
+}
+
+// Rainbow color
+uint8_t neo_rainbow_hue = 0;
+void neo_rainbow(){
+  for(int i=0; i<100; i++){
+    fill_rainbow(neco_leds, NEO_NUM_LEDS, neo_rainbow_hue, 15U);
+    FastLED.show();
+    delay(10);
+    neo_rainbow_hue++;
+  }
+}
+
+// Random demo
+// solid, fade, blink, rainbow
+uint8_t neo_random_num = 0;
+uint8_t neo_random_count = 0;
+void neo_random(uint32_t color, uint8_t repeat){
+  
+  Serial.printf("[NEO_RANDOM]num=%d,count=%d\n",neo_random_num, neo_random_count);
+  CHSV hsv = rgb2hsv_approximate(color);
+  switch (neo_random_num)
+  {
+  case 0: neo_solid(color); break;
+  case 1: neo_solid(color); break;
+  case 2: neo_solid(color); break;
+  case 3: neo_blink(color); break;
+  case 4: neo_blink(color); break;
+  case 5: neo_blink(color); break;
+  case 6: neo_fade(hsv.hue); break;
+  case 7: neo_fade(hsv.hue); break;
+  case 8: neo_fade(hsv.hue); break;
+  case 9: neo_rainbow(); break;
+  
+  default:
+    break;
+  }
+
+  neo_random_count++;
+  if(neo_random_count>repeat){
+    neo_random_num = random8(10);
+    neo_random_count = 0;
+  }
+}
+
+// Process NeoPixels on NECO MIMI board.
+void neo_loop(void *args){
+  Expression exp; // expression from m5avatar
+
+  // Start up demo
+  for(int i=0; i<NEO_NUM_LEDS; i++){
+    fill_rainbow(neco_leds, i+1, 0, 15U);
+    FastLED.show();
+    delay(357);
+  }
+  delay(250);
+  for(int i=0; i<NEO_NUM_LEDS; i++){
+    fill_solid(neco_leds, i+1, CRGB::Green);
+    FastLED.show();
+    delay(35);
+  }
+
+  while(1){
+    // Put codes for NeoPixle
+    //neo_rainbow(10);
+    /*
+    for(int i=0; i<NEO_NUM_LEDS; i++){
+      neco_leds[i] = CRGB::Green;
+    }
+    FastLED.show();
+    delay(500);
+    for(int i=0; i<NEO_NUM_LEDS; i++){
+      neco_leds[i] = CRGB::Black;
+    }
+    FastLED.show();
+    */
+    exp = avatar.getExpression();
+    Serial.printf("[NECO]exp:%d\n",exp);
+    switch(exp){
+      case Expression::Happy:   neo_fade(208); break;
+      case Expression::Neutral: neo_random(CRGB::Green,5); /*neo_fade(96);*/ break;
+      //case Expression::Neutral: neo_rainbow(); break;
+      case Expression::Doubt:   neo_move_fade(CRGB::Yellow); break;
+      case Expression::Angry:   neo_fade(0); break;
+      case Expression::Sad:     neo_fade(142); break;
+      case Expression::Sleepy:  neo_fade(64); break;
+      default: neo_blink(CRGB::Blue);
+    }
+    delay(1);
+  }
+}
+
+#endif
 
 ESP32WebServer server(80);
 
